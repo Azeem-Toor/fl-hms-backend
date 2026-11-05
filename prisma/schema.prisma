@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "sqlite"
+  relationMode = "foreignKeys"
+}
+
+// Authentication module schema for FLHMS (FuzeLogics Health Management System)
+// --------------------------------------------------
+// ENUMS
+// --------------------------------------------------
+
+enum Application {
+  ADMIN
+  RECEPTION
+  DOCTOR
+  PHARMACY
+}
+
+enum RosterStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum DutyStatus {
+  ASSIGNED
+  CANCELLED
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
+// --------------------------------------------------
+// 1. USER
+// --------------------------------------------------
+
+model User {
+  id               String    @id @default(uuid())
+  userName         String    @unique
+  fullName         String
+  email            String?   @unique
+  phone            String?
+  address          String?
+  designation      String?
+  salaryMinorUnits Int?
+  joiningDate      DateTime?
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  credential    UserCredential?
+  userRoles     UserRole[]
+  duties        Duty[]
+  sessions      RefreshSession[]
+  revokedTokens RevokedAccessToken[]
+
+  createdRosters DutyRoster[]   @relation("RosterCreator")
+  auditAsActor   AuthAuditLog[] @relation("AuditActor")
+  auditAsTarget  AuthAuditLog[] @relation("AuditTarget")
+
+  @@index([isActive, deletedAt])
+}
+
+// --------------------------------------------------
+// 2. USER CREDENTIAL
+// --------------------------------------------------
+
+model UserCredential {
+  id           String @id @default(uuid())
+  userId       String @unique
+  passwordHash String
+
+  failedAttempts     Int       @default(0)
+  lockedUntil        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+// --------------------------------------------------
+// 3. ROLE
+// --------------------------------------------------
+
+model Role {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  description String?
+  application Application
+
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions RolePermission[]
+  userRoles   UserRole[]
+  duties      Duty[]
+  sessions    RefreshSession[]
+
+  @@unique([application, name])
+  @@index([application, isActive])
+}
+
+// --------------------------------------------------
+// 4. PERMISSION
+// --------------------------------------------------
+
+model Permission {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  description String
+  application Application
+
+  createdAt DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@index([application])
+}
+
+// --------------------------------------------------
+// 5. ROLE PERMISSION
+// --------------------------------------------------
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  assignedAt DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+// --------------------------------------------------
+// 6. USER ROLE
+// --------------------------------------------------
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  assignedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId])
+  @@index([roleId, revokedAt])
+}
+
+// --------------------------------------------------
+// 7. SHIFT
+// --------------------------------------------------
+
+model Shift {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  // Minutes after midnight (0 to 1439)
+  startMinute Int
+  endMinute   Int
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duties Duty[]
+}
+
+// --------------------------------------------------
+// 8. DUTY ROSTER
+// --------------------------------------------------
+
+model DutyRoster {
+  id        String   @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+
+  status RosterStatus @default(DRAFT)
+
+  createdById String
+  publishedAt DateTime?
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User @relation("RosterCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  duties Duty[]
+
+  @@index([status, startDate, endDate])
+  @@index([createdById])
+}
+
+// --------------------------------------------------
+// 9. DUTY
+// --------------------------------------------------
+
+model Duty {
+  id String @id @default(uuid())
+
+  userId   String
+  roleId   String
+  shiftId  String
+  rosterId String
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  status DutyStatus @default(ASSIGNED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role   Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  shift  Shift      @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  roster DutyRoster @relation(fields: [rosterId], references: [id], onDelete: Restrict)
+
+  @@unique([rosterId, userId, roleId, startsAt])
+  @@index([userId, startsAt, endsAt])
+  @@index([roleId, startsAt])
+  @@index([rosterId, status])
+}
+
+// --------------------------------------------------
+// 10. REFRESH SESSION
+// --------------------------------------------------
+
+model RefreshSession {
+  id          String      @id @default(uuid())
+  userId      String
+  roleId      String?
+  application Application
+
+  refreshTokenHash String
+  tokenFamilyId    String @default(uuid())
+  tokenVersion     Int    @default(0)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  expiresAt    DateTime
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  revokeReason String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role Role? @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  revokedTokens RevokedAccessToken[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([tokenFamilyId])
+}
+
+// --------------------------------------------------
+// 11. REVOKED ACCESS TOKEN
+// --------------------------------------------------
+
+model RevokedAccessToken {
+  id        String  @id @default(uuid())
+  jti       String  @unique
+  userId    String
+  sessionId String?
+
+  reason    String?
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  session RefreshSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// --------------------------------------------------
+// 12. AUTH AUDIT LOG
+// --------------------------------------------------
+
+model AuthAuditLog {
+  id String @id @default(uuid())
+
+  actorId      String?
+  targetUserId String?
+
+  action      String
+  outcome     AuditOutcome
+  application Application?
+
+  entityType String?
+  entityId   String?
+
+  sessionId String?
+  requestId String?
+  ipAddress String?
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  actor      User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([outcome, createdAt])
+  @@index([requestId])
+}

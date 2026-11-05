@@ -1,0 +1,46 @@
+{
+  "name": "flhms-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed:permissions": "node prisma/permissonsSeed.js",
+    "db:seed:admin": "node prisma/superAdminSeed.js",
+    "db:seed": "npm run db:seed:permissions && npm run db:seed:admin"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.4",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "moment": "^2.31.0",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "pino-pretty": "^13.2.0",
+    "prisma": "^7.10.1"
+  },
+  "allowScripts": {
+    "@prisma/client@7.10.1": true,
+    "better-sqlite3@12.11.1": true,
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
+  }
+}
