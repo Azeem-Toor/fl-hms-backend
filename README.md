@@ -81,8 +81,8 @@ Controllers should focus on HTTP concerns, services on business rules, and repos
 ### 2. Install dependencies
 
 ```bash
-git clone <repository-url>
-cd <project-directory>
+git clone https://github.com/Azeem-Toor/fl-hms-backend.git
+cd fl-hms-backend
 npm install
 ```
 
