@@ -5,7 +5,10 @@ import { requireSuperAdmin } from "../middlewares/requireSuperAdmin.js";
 import { validate } from "../middlewares/validate.js";
 import { listPermissionsSchema } from "../modules/auth/validations/permissons.validation.js";
 import * as permissionsController from "../modules/auth/controllers/permissons.controller.js"
+import { permissions } from "../common/permissons.js";
+import { requirePermission } from "../middlewares/authorize.js";
 const permissionsRouter = Router();
+
 
 // Authentication required for all role endpoints
 permissionsRouter.use(authenticate);
@@ -13,6 +16,6 @@ permissionsRouter.use(authenticate);
 permissionsRouter.use(requireSuperAdmin);
 
 
-permissionsRouter.get("/", validate(listPermissionsSchema), permissionsController.listPermissions);
+permissionsRouter.get("/",requirePermission(permissions.permissions.read), validate(listPermissionsSchema), permissionsController.listPermissions);
 
 export default permissionsRouter;
