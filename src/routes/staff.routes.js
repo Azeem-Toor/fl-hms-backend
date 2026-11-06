@@ -12,35 +12,36 @@ import {
 } from "../modules/auth/validations/staff.validation.js";
 
 import { authenticate } from "../middlewares/authenticate.js";
-import { requireSuperAdmin } from "../middlewares/requireSuperAdmin.js";
 import { validate } from "../middlewares/validate.js";
+import { permissions } from "../common/permissons.js";
+import { requirePermission } from "../middlewares/authorize.js";
 
 const staffRouter = Router();
 
 // Authentication required for all endpoints
 staffRouter.use(authenticate);
 
-// Super Admin authorization required
-staffRouter.use(requireSuperAdmin);
+
 
 // --------------------------------------------------
 // STAFF MANAGEMENT ROUTES
 // --------------------------------------------------
 
-staffRouter.post("/", validate(createStaffSchema), controller.createStaff);
+staffRouter.post("/", requirePermission(permissions.staff.create), validate(createStaffSchema), controller.createStaff);
 
-staffRouter.get("/", validate(listStaffSchema), controller.listStaff);
+staffRouter.get("/", requirePermission(permissions.staff.read), validate(listStaffSchema), controller.listStaff);
 
-staffRouter.get("/:id", validate(getStaffSchema), controller.getStaffById);
+staffRouter.get("/:id", requirePermission(permissions.staff.read), validate(getStaffSchema), controller.getStaffById);
 
-staffRouter.patch("/:id", validate(updateStaffSchema), controller.updateStaff);
+staffRouter.patch("/:id", requirePermission(permissions.staff.update), validate(updateStaffSchema), controller.updateStaff);
 
 staffRouter.patch(
   "/:id/password",
+  requirePermission(permissions.staff.update),
   validate(resetStaffPasswordSchema),
   controller.resetStaffPassword
 );
 
-staffRouter.delete("/:id", validate(deleteStaffSchema), controller.deleteStaff);
+staffRouter.delete("/:id", requirePermission(permissions.staff.delete), validate(deleteStaffSchema), controller.deleteStaff);
 
 export default staffRouter;
